@@ -365,9 +365,18 @@
       top: 0;
       left: 0;
       filter: saturate(1.35) contrast(1.08) brightness(1.05);
-      -webkit-mask-image: radial-gradient(circle 0px at 50% 50%, black 60%, transparent 100%);
-      mask-image: radial-gradient(circle 0px at 50% 50%, black 60%, transparent 100%);
+      -webkit-mask-image: radial-gradient(circle 0px at 50% 50%, black 30%, transparent 100%);
+      mask-image: radial-gradient(circle 0px at 50% 50%, black 30%, transparent 100%);
       pointer-events: none;
+      transition: filter 0.6s ease;
+    }
+
+    .portrait-container:hover .portrait-color {
+      filter: saturate(1.4) contrast(1.1) brightness(1.1);
+    }
+
+    .portrait-container:hover {
+      box-shadow: 0 0 100px rgba(147, 51, 234, 0.25), 0 0 40px rgba(192, 132, 252, 0.1);
     }
 
     /* Hero bottom area */
@@ -1271,8 +1280,8 @@
   <section class="container" id="about">
     <div class="about-grid">
       <div class="about-left reveal">
-        <span class="sec-index mono">01 — ABOUT</span>
-        <h2 class="sec-heading"><span class="sec-slash">/</span>ABOUT <span class="ghost-text">ME</span></h2>
+
+        <h2 class="sec-heading">ABOUT <span class="ghost-text">ME</span></h2>
 
         <h3 class="syne" style="font-size: 1.6rem; color: var(--text); margin-bottom: 1.2rem; line-height: 1.3;">
           I engineer digital experiences that <br><span class="ghost-text">leave a mark.</span>
@@ -1420,8 +1429,8 @@
   <!-- Projects Section -->
   <section class="container" id="projects">
     <div class="reveal">
-      <span class="sec-index mono">02 — WORK</span>
-      <h2 class="sec-heading"><span class="sec-slash">/</span>PROJECTS</h2>
+    
+      <h2 class="sec-heading">PROJECTS</h2>
     </div>
 
     <div class="projects-grid">
@@ -1549,8 +1558,8 @@
   <!-- Hackathons Section -->
   <section class="container" id="hackathons">
     <div class="reveal">
-      <span class="sec-index mono">03 — ACHIEVEMENTS</span>
-      <h2 class="sec-heading"><span class="sec-slash">/</span>HACKATHONS</h2>
+      
+      <h2 class="sec-heading">HACKATHONS</h2>
     </div>
 
     <div class="hackathon-list">
@@ -1811,26 +1820,24 @@
     drawParticles();
 
     // -----------------------------------------------------
-    // 3. PORTRAIT CURRENT HOVER SPOTLIGHT
+    // 3. PORTRAIT LUCID HOVER EFFECT
     // -----------------------------------------------------
     const portraitContainer = document.getElementById('portrait-container');
     const colorLayer = document.getElementById('portrait-color');
     let spotRadius = 0;
     let targetRadius = 0;
-    let lastX = 160; // Center X
-    let lastY = 160; // Center Y
+    let targetX = 160, targetY = 160; // where mouse actually is
+    let currentX = 160, currentY = 160; // where the mask center currently is (lags behind)
 
-    // Default CSS is mask 0 radius, we'll manipulate via inline styles during animation
     portraitContainer.addEventListener('mousemove', (e) => {
       const rect = portraitContainer.getBoundingClientRect();
-      lastX = e.clientX - rect.left;
-      lastY = e.clientY - rect.top;
-      targetRadius = 120;
+      targetX = e.clientX - rect.left;
+      targetY = e.clientY - rect.top;
+      targetRadius = 180;
     });
 
     portraitContainer.addEventListener('mouseenter', () => {
-      targetRadius = 120;
-      spotRadius = 0; // force restart transition smoothly
+      targetRadius = 180;
     });
 
     portraitContainer.addEventListener('mouseleave', () => {
@@ -1838,10 +1845,16 @@
     });
 
     function animateSpotlight() {
-      // Lerp radius
-      spotRadius += (targetRadius - spotRadius) * 0.12;
+      // Lerp position — slow follow creates the "flowing" feel
+      currentX += (targetX - currentX) * 0.06;
+      currentY += (targetY - currentY) * 0.06;
 
-      const maskStyle = `radial-gradient(circle ${spotRadius}px at ${lastX}px ${lastY}px, black 60%, transparent 100%)`;
+      // Lerp radius — smooth grow/shrink
+      spotRadius += (targetRadius - spotRadius) * 0.08;
+
+      // Soft multi-stop gradient for a lucid, feathered edge
+      const r = spotRadius;
+      const maskStyle = `radial-gradient(circle ${r}px at ${currentX}px ${currentY}px, black 0%, rgba(0,0,0,0.7) 30%, rgba(0,0,0,0.3) 60%, transparent 100%)`;
       colorLayer.style.webkitMaskImage = maskStyle;
       colorLayer.style.maskImage = maskStyle;
 
@@ -1931,29 +1944,54 @@
     // 6. PRELOADER & TYPEWRITER LOGIC
     // -----------------------------------------------------
     document.addEventListener("DOMContentLoaded", () => {
-      // Preloader
+      // Preloader — waits for ALL assets (images, fonts, etc.) to load
       const loader = document.getElementById("preloader");
       const loaderBar = document.getElementById("loader-bar");
       const loaderPercentage = document.getElementById("loader-percentage");
 
+      const startTime = Date.now();
+      const MIN_DISPLAY_MS = 800; // minimum time to show loader (prevent flash)
       let progress = 0;
-      const duration = 1500;
-      const interval = 20;
-      const step = (100 / (duration / interval));
+      let assetsLoaded = false;
 
-      const loadingInterval = setInterval(() => {
-        progress += step;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(loadingInterval);
-          setTimeout(() => {
-            loader.style.opacity = '0';
-            loader.style.visibility = 'hidden';
-          }, 400);
+      // Animate bar to 90% as visual feedback while assets load
+      const fakeInterval = setInterval(() => {
+        if (progress < 90) {
+          progress += 0.6; // slow climb to 90%
+          loaderBar.style.width = `${progress}%`;
+          loaderPercentage.textContent = `${Math.floor(progress)}%`;
         }
-        loaderBar.style.width = `${progress}%`;
-        loaderPercentage.textContent = `${Math.floor(progress)}%`;
-      }, interval);
+      }, 20);
+
+      function dismissLoader() {
+        clearInterval(fakeInterval);
+        // Snap to 100%
+        loaderBar.style.width = '100%';
+        loaderPercentage.textContent = '100%';
+
+        // Ensure minimum display time has passed
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
+
+        setTimeout(() => {
+          loader.style.opacity = '0';
+          loader.style.visibility = 'hidden';
+        }, remaining + 300); // +300ms to let 100% bar be visible briefly
+      }
+
+      // window 'load' fires after ALL resources (images, stylesheets, etc.) are done
+      window.addEventListener('load', () => {
+        assetsLoaded = true;
+        dismissLoader();
+      });
+
+      // Safety timeout: dismiss after 8 seconds even if something stalls
+      setTimeout(() => {
+        if (!assetsLoaded) {
+          console.warn('Preloader: safety timeout reached, dismissing.');
+          dismissLoader();
+        }
+      }, 8000);
 
       // Typewriter
       const roles = [
